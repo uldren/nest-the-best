@@ -1,0 +1,46 @@
+version: '3.9'
+
+services:
+    main:
+        container_name: main
+        build:
+            context: .
+            target: production
+        ports:
+            - 127.0.0.1:${PORT}:${PORT}
+        networks:
+            - localhost
+        env_file: .env.production
+        volumes:
+            - .:/backend
+            - /backend/node_modules
+        environment:
+            NODE_ENV: production
+            POSTGRES_HOST: $POSTGRES_HOST
+            POSTGRES_USER: $POSTGRES_USER
+            POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+            POSTGRES_DB: $POSTGRES_DB
+        depends_on:
+            - db
+        restart: always
+    db:
+        container_name: db
+        image: postgres
+        env_file: .env.production
+        environment:
+            POSTGRES_DB: $POSTGRES_DB
+            POSTGRES_USER: $POSTGRES_USER
+            POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+            PG_DATA: /var/lib/postgresql/data            
+        ports:
+            - 5433:5432
+        networks:
+            - localhost
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        restart: always
+networks:
+  localhost:
+
+volumes:
+    pgdata: {}

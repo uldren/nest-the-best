@@ -1,0 +1,68 @@
+image: docker:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - release
+  - deploy
+
+variables:
+  # CONTAINER_TEST_IMAGE: registry.gitlab.com/uldren/nest-the-best:$CI_COMMIT_SHA
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/uldren/nest-the-best:test
+  CONTAINER_RELEASE_IMAGE: registry.gitlab.com/uldren/nest-the-best:release
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+
+before_script:
+  - docker login -u $CI_DOCKER_USER -p $CI_DOCKER_PASSWORD $CI_REGISTRY
+
+build:
+  stage: build
+  script:
+    - docker build -t $CONTAINER_TEST_IMAGE --target development .
+    - docker push $CONTAINER_TEST_IMAGE
+  tags:
+    - nest-the-best
+
+test-unit:
+  stage: test
+  script:
+    - docker build -t $CONTAINER_TEST_IMAGE --target test .
+    - docker run -t --name unit-test $CONTAINER_TEST_IMAGE
+  tags:
+    - nest-the-best
+  only:
+    - master
+
+test-lint:
+  stage: test
+  script:
+    - docker build -t $CONTAINER_TEST_IMAGE --target lint .
+    - docker run -t --name lint-test $CONTAINER_TEST_IMAGE
+  tags:
+    - nest-the-best
+
+release-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  tags:
+    - nest-the-best
+  only:
+    - master
+
+deploy:
+  stage: deploy
+  script:
+    # Разобраться почему не подхватывает переменные окружения из файла docker-compose.yml
+    - docker compose --env-file .env.production up -d --build
+  tags:
+    - nest-the-best
+  only:
+    - master
+    
